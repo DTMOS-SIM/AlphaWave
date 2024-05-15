@@ -1,51 +1,39 @@
 from infrastructure.interface.Binance.Iwallet import IWallet
-from infrastructure.interface.Iasset import IAsset
-from infrastructure.interface.Iindicator import IIndicator
+from services.asset import Asset
+from services.wallet import Wallet
 from infrastructure.interface.Iportfolio import IPortfolio
 from infrastructure.utility.Adapters.binance_adapter import BinanceAdapter
+from infrastructure.utility.Indicators.ATR import ATR
 
 
 class Portfolio(IPortfolio):
 
-    def __init__(self, indicators: [IIndicator], assets: [IAsset], wallet: IWallet):
+    def __init__(self, assets: [Asset], wallet: Wallet):
         self.combined_signals = []
-        self.indicators = indicators
         self.assets = assets
         self.wallet = wallet
 
     def get_notional(self):
         return self._notional
 
-    def set_notional(self, notional):
-        self._notional = notional
+    def show_specs(self):
+        print("Wallet Data: ")
+        print(self.wallet)
+        for asset in self.assets:
+            name, weight, position, current_asset, ta = asset.asset_info()
+            print("Asset Name: ", name)
+            print("Asset Weight: ", weight)
+            print("Asset Positions: ")
+            print(position)
+            print("Asset Current weight: ", current_asset)
+            print("Asset Indicators: ")
+            print(ta)
 
     def generate_signals(self):
+        ATR().generate_signals()
 
-        try:
-            new_timestamp = []
-            for asset in self.assets:
-                temp_indicator = 0
-                for indicator in self.indicators:
-                    signal = indicator.calculate()
-                    temp_indicator += signal
-                # Finalise intended signal base on TAs
-                new_timestamp.append(temp_indicator)
-            return new_timestamp
-
-        except TypeError:
-            raise TypeError
-
-    def filter_signals(self, indicators: []):
-
-        for i in range(len(indicators)):
-            if indicators[i] > 0:
-                indicators[i] = 1
-            elif indicators[i] < 0:
-                indicators[i] = -1
-            else:
-                indicators[i] = 0
-
-        self.combined_signals.append(indicators)
+    def set_notional(self, notional):
+        self._notional = notional
 
     def compute_realized_allocation(self):
         # Get all the coins
@@ -58,6 +46,9 @@ class Portfolio(IPortfolio):
                 # Call binance API to sell off product
                 # **Change BinanceAdapter to singleton call**
                 BinanceAdapter().sell_assets(product)
+
+    def filter_signals(self, indicators: []):
+        pass
 
     def buy_assets(self):
         pass

@@ -4,26 +4,32 @@ import pandas as pd
 
 class ATR(IIndicator):
 
-    def __init__(self, dataframe: pd.DataFrame, window: int = 14):
-        super().__init__()
-        self.dataframe = dataframe
-        self.window = window
+    @staticmethod
+    def calculate_historical_readings(dataframe: pd.DataFrame, window: int) -> pd.DataFrame:
 
-    def calculate_historical_readings(self):
-
-        self.dataframe["Previous Close"] = self.dataframe["Close"].shift(1)
-        true_range = self.dataframe.apply(lambda row: max(row["High"] - row["Low"], abs(row["High"] - row["Previous Close"]),
+        dataframe["Previous Close"] = dataframe["Close"].shift(1)
+        true_range = dataframe.apply(lambda row: max(row["High"] - row["Low"], abs(row["High"] - row["Previous Close"]),
                                                      abs(row["Low"] - row["Previous Close"])), axis=1)
 
-        rolling_true_range = true_range.rolling(window=self.window).sum()
-        average_volatility = rolling_true_range * (1 / self.window)
-        self.dataframe["Price_Diff"] = self.dataframe["Close"] - self.dataframe["Open"]
-        self.dataframe["Next_Avg_Volatility"] = average_volatility.shift(-1)
+        rolling_true_range = true_range.rolling(window=window).sum()
+        average_volatility = rolling_true_range * (1 / window)
+        dataframe["Price_Diff"] = dataframe["Close"] - dataframe["Open"]
+        dataframe["Next_Avg_Volatility"] = average_volatility.shift(-1)
 
-        return self.dataframe
+        return dataframe
 
-    def calculate(self):
-        pass
+    @staticmethod
+    def generate_signals(dataframe: pd.DataFrame, window: int) -> pd.Series:
 
-    def __del__(self):
+        # Initialize signals
+        signals = pd.Series(0, index=dataframe.index, dtype='int')
+
+        # Generate signals using vectorized operations
+        signals[(dataframe["Price_Diff"] > dataframe['Next_Avg_Volatility'])] = 1
+        signals[(dataframe["Price_Diff"] < dataframe['Next_Avg_Volatility'])] = -1
+
+        return signals
+
+    @staticmethod
+    def calculate(dataframe: pd.DataFrame, window: int):
         pass

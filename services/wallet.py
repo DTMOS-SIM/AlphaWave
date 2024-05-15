@@ -29,6 +29,9 @@ class Wallet(IWallet):
     def get_notional(self) -> float:
         return self.total_wallet_balance
 
+    def get_assets(self):
+        return NotImplementedError
+
     def __del__(self):
         pass
 

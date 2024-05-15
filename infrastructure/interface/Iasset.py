@@ -1,10 +1,16 @@
 from abc import ABC, abstractmethod
+from infrastructure.interface.currencyweights import CurrencyWeights
+from services.position import Position
 
 
 class IAsset(ABC):
 
     @abstractmethod
-    def __init__(self):
+    def __init__(self, name: str, weight: CurrencyWeights, positions: [Position], TAs: {}):
+        raise NotImplementedError
+
+    @abstractmethod
+    def asset_info(self):
         raise NotImplementedError
 
     @abstractmethod
