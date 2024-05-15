@@ -8,11 +8,15 @@ class IPortfolio(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def generate_signals(self):
+    def filter_signals(self, indicators: []):
         raise NotImplementedError
 
     @abstractmethod
-    def filter_signals(self, indicators: []):
+    def show_specs(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def generate_signals(self, indicators: []):
         raise NotImplementedError
 
     @abstractmethod

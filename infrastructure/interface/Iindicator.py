@@ -1,20 +1,20 @@
 from abc import ABC, abstractmethod
+import pandas as pd
 
 
 class IIndicator(ABC):
 
+    @staticmethod
     @abstractmethod
-    def __init__(self):
+    def calculate_historical_readings():
         raise NotImplementedError
 
+    @staticmethod
     @abstractmethod
-    def calculate_historical_readings(self):
+    def calculate():
         raise NotImplementedError
 
+    @staticmethod
     @abstractmethod
-    def calculate(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def __del__(self):
+    def generate_signals():
         raise NotImplementedError

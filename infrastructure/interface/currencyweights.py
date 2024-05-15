@@ -2,8 +2,13 @@ from enum import Enum
 
 
 class CurrencyWeights(Enum):
-    BTC = 0.23
-    ETH = 2.37
-    BNB = 22.06
-    WETH = 3.26
-    LIC = 71.78
+    BTCUSDT = 0.23
+    ETHUSDT = 2.37
+    BNBUSDT = 22.06
+    ZECUSDT = 3.26
+    LTCUSDT = 71.78
+
+    @classmethod
+    def list(cls):
+        return list(map(lambda c: c.name, cls))
+
