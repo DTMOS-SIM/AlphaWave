@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from infrastructure.interface.currencyweights import CurrencyWeights
+from infrastructure.interface.currencyWeightsEnum import CurrencyWeights
 from services.position import Position
 
 
@@ -11,6 +11,10 @@ class IAsset(ABC):
 
     @abstractmethod
     def asset_info(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_positions(self):
         raise NotImplementedError
 
     @abstractmethod

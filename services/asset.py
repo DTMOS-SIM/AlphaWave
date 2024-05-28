@@ -1,7 +1,7 @@
 import datetime
 from infrastructure.interface.Iasset import IAsset
 from services.position import Position
-from infrastructure.interface.currencyweights import CurrencyWeights
+from infrastructure.interface.currencyWeightsEnum import CurrencyWeights
 
 
 class Asset(IAsset):
@@ -15,14 +15,20 @@ class Asset(IAsset):
         self._date_modified = datetime.datetime.now()
         self._TAs = TAs
 
-    def asset_info(self) -> [Position]:
+    def asset_info(self):
         return self._name, self._weight, self._positions, self._current_asset_weights, self._TAs
+
+    def get_positions(self):
+        return self._positions
+
+    def get_name(self):
+        return self._name
 
     def set_weight(self, weight: CurrencyWeights) -> None:
         self._weight = weight
 
     def get_weight(self) -> CurrencyWeights:
-        return self._weights
+        return self._weight
 
     def set_indicators(self, indicators: {}) -> None:
         self._TAs = indicators

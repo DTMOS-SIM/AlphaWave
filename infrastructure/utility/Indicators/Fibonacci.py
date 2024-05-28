@@ -46,7 +46,7 @@ class FIBONACCI(IIndicator):
         # Determine if prices rebound from levels (simplified logic)
         for i in range(1, len(dataframe)):
             previous_price = dataframe[column_name].iloc[i - 1]
-            current_price = ß[column_name].iloc[i]
+            current_price = dataframe[column_name].iloc[i]
             for level, price in levels.items():
                 if previous_price < price <= current_price:  # Crossing up a level
                     signals.iloc[i] = 1  # Potential buy signal

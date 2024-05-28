@@ -5,7 +5,6 @@ import pandas as pd
 class IIndicator(ABC):
 
     @staticmethod
-    @abstractmethod
     def calculate_historical_readings():
         raise NotImplementedError
 

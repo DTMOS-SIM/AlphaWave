@@ -16,19 +16,15 @@ class IPortfolio(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def generate_signals(self, indicators: []):
+    def generate_signals(self):
         raise NotImplementedError
 
     @abstractmethod
-    def compute_realized_allocation(self):
+    def compute_realized_allocation(self, signals: {}):
         raise NotImplementedError
 
     @abstractmethod
-    def sell_assets(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def buy_assets(self):
+    def transact_assets(self, symbol: str, qty: int, side: str, position_side: str):
         raise NotImplementedError
 
     @abstractmethod
