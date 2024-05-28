@@ -1,14 +1,9 @@
 import logging
 import time
-import hmac
-import hashlib
-import requests
 import calendar
 import pandas as pd
-from datetime import datetime as dt, timezone
-from urllib.parse import urlencode
-from promisio import promisify
-from infrastructure.interface.currencyweights import CurrencyWeights
+from datetime import datetime as dt
+from infrastructure.interface.currencyWeightsEnum import CurrencyWeights
 from infrastructure.interface.IAdapter import GenericAdapter
 from binance.um_futures import UMFutures
 
@@ -73,45 +68,34 @@ class BinanceAdapter(GenericAdapter, object):
             logging.info(f'Sleeping for {seconds} seconds')
         # Completed
         logging.info(f'Finished getting initial data for T + {initial_interval}')
+        print(dict_temp)
         return dict_temp
 
     def __del__(self):
         pass
 
-    # send market order
-    def send_market_order(self, key: str, secret: str, symbol: str, quantity: float, side: bool):
-        # order parameters
-        timestamp = int(time.time() * 1000)
-        params = {
-            "symbol": symbol,
-            "side": "BUY" if side else "SELL",
-            "type": "MARKET",
-            "quantity": quantity,
-            'timestamp': timestamp
-        }
+    def transact_assets(self, symbol: str, qty: float, side: str, position_side: str):
+        params = [
+            {
+                "symbol": symbol,
+                "side": side,   # BUY OR SELL
+                "positionSide": position_side,  # LONG OR SHORT
+                "type": "MARKET",
+                "quantity": str(qty),
+            },
+        ]
 
-        # create query string
-        query_string = urlencode(params)
-        logging.info('Query string: {}'.format(query_string))
-
-        # signature
-        signature = hmac.new(secret.encode("utf-8"), query_string.encode("utf-8"), hashlib.sha256).hexdigest()
-
-        # url
-        url = self._base_url + '/fapi/v1/order' + "?" + query_string + "&signature=" + signature
-
-        # post request
-        session = requests.Session()
-        session.headers.update(
-            {"Content-Type": "application/json;charset=utf-8", "X-MBX-APIKEY": key}
-        )
-        response = session.post(url=url, params={})
-
-        # get order id
-        response_map = response.json()
-        order_id = response_map.get('orderId')
-
-        return order_id
+        try:
+            response = self._futures_client.new_batch_order(params)
+            logging.info('Sent Order: ', response)
+            return response
+        except Exception as error:
+            logging.error(
+                "Found error. status: {}, error code: {}, error message: {}".format(
+                    error.status_code, error.error_code, error.error_message
+                )
+            )
+            return error.__str__()
 
     def __new__(cls, *args, **kwargs):
         if not isinstance(cls.instance, cls):

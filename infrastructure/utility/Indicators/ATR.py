@@ -19,7 +19,7 @@ class ATR(IIndicator):
         return dataframe
 
     @staticmethod
-    def generate_signals(dataframe: pd.DataFrame, window: int) -> pd.Series:
+    def generate_signals(dataframe: pd.DataFrame) -> pd.Series:
 
         # Initialize signals
         signals = pd.Series(0, index=dataframe.index, dtype='int')

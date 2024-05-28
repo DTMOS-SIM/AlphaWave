@@ -13,7 +13,7 @@ class StochasticOscillator(IIndicator):
         return dataframe
 
     @staticmethod
-    def generate_signals(dataframe: pd.DataFrame, column_name: str) -> pd.Series:
+    def generate_signals(dataframe: pd.DataFrame) -> pd.Series:
         # Convert Series to DataFrame if necessary
         if isinstance(dataframe, pd.Series):
             dataframe = dataframe.to_frame(name='Stochastic_Osc')  # Assuming the series contains Stochastic Oscillator values

@@ -22,7 +22,7 @@ class BollingerBands(IIndicator):
         return dataframe
 
     @staticmethod
-    def generate_signals(dataframe: pd.DataFrame, window: int) -> pd.Series:
+    def generate_signals(dataframe: pd.DataFrame, column: str) -> pd.Series:
 
         signals = pd.Series(index=dataframe.index, dtype=int)
 

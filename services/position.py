@@ -19,13 +19,13 @@ class Position:
         self.updateTime = updateTime
 
     def add_pos(self):
-        raise NotImplementedError
+        pass
 
     def get_assets(self):
-        raise NotImplementedError
+        pass
 
     def get_notional(self):
-        raise NotImplementedError
+        pass
 
     def __del__(self):
-        raise NotImplementedError
+        pass

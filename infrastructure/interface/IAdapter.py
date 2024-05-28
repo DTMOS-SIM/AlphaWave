@@ -21,7 +21,7 @@ class GenericAdapter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def send_market_order(self, key: str, secret: str, symbol: str, quantity: float, side: bool):
+    def transact_assets(self, symbol: str, qty: float, side: str, position_side: str):
         raise NotImplementedError
 
     @abstractmethod
