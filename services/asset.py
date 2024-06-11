@@ -4,16 +4,16 @@ from services.position import Position
 from infrastructure.interface.currencyWeightsEnum import CurrencyWeights
 
 
-class Asset(IAsset):
+class Asset(IAsset, object):
 
-    def __init__(self, name: str, weight: CurrencyWeights, positions: [Position], TAs: {}):
+    def __init__(self, name: str, weight: CurrencyWeights, positions: [Position], TAs: dict):
         self._name = name
         self._weight = weight
         self._positions = positions
-        self._current_asset_weights = 0.0
+        self.__current_asset_weights = 0.0
         self._date_created = datetime.datetime.now()
         self._date_modified = datetime.datetime.now()
-        self._TAs = TAs
+        self.TAs = TAs
 
     def asset_info(self):
         return self._name, self._weight, self._positions, self._current_asset_weights, self._TAs
@@ -31,16 +31,16 @@ class Asset(IAsset):
         return self._weight
 
     def set_indicators(self, indicators: {}) -> None:
-        self._TAs = indicators
+        self.TAs = indicators
 
     def get_indicators(self) -> dict:
-        return self._TAs
+        return self.TAs
 
     def set_current_asset_weightage(self, weight: float):
-        self._current_asset_weights = weight
+        self.__current_asset_weights = weight
 
     def get_current_asset_weightage(self) -> float:
-        return self._current_asset_weights
+        return self.__current_asset_weights
 
     def __del__(self):
         pass

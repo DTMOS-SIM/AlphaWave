@@ -9,7 +9,6 @@ from binance.um_futures import UMFutures
 
 
 class BinanceAdapter(GenericAdapter, object):
-
     instance = None
 
     def __init__(self):
@@ -32,7 +31,7 @@ class BinanceAdapter(GenericAdapter, object):
         temp_dict = {}
         pairs = CurrencyWeights.list()
 
-        temp_dict[pairs[0]] = self._futures_client.klines(symbol=pairs[0], interval=interval)[-1][1:6]
+        temp_dict[pairs[0]] = self._futures_client.klines(pairs[0], interval)[-1][1:6]
         temp_dict[pairs[1]] = self._futures_client.klines(pairs[1], interval)[-1][1:6]
         temp_dict[pairs[2]] = self._futures_client.klines(pairs[2], interval)[-1][1:6]
         temp_dict[pairs[3]] = self._futures_client.klines(pairs[3], interval)[-1][1:6]
@@ -41,6 +40,9 @@ class BinanceAdapter(GenericAdapter, object):
         temp_dict = {key: list(map(float, value)) for key, value in temp_dict.items()}
 
         return temp_dict
+
+    def get_specific_market_data(self, interval: str, pair_name: str):
+        return list(map(float, self._futures_client.klines(symbol=pair_name, interval=interval)[-1][1:6]))
 
     def get_initial_df(self, seconds, interval):
         dict_temp = {}
@@ -71,6 +73,18 @@ class BinanceAdapter(GenericAdapter, object):
         print(dict_temp)
         return dict_temp
 
+    def get_current_df_row(self, dict_temp: {}, pair) -> dict:
+        final_table_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+        response = self.get_specific_market_data("1h", pair)
+        time_now = calendar.timegm((dt.utcnow()).utctimetuple())
+
+        for x, y in dict_temp.items():
+            dict_temp[x] = dict_temp[x].drop(index=dict_temp[x].index[0], axis=0)
+            dict_temp[x] = dict_temp[x].drop(columns=[col for col in dict_temp[x] if col not in final_table_columns])
+            dict_temp[x].loc[time_now] = response
+
+        return dict_temp
+
     def __del__(self):
         pass
 
@@ -78,7 +92,7 @@ class BinanceAdapter(GenericAdapter, object):
         params = [
             {
                 "symbol": symbol,
-                "side": side,   # BUY OR SELL
+                "side": side,  # BUY OR SELL
                 "positionSide": position_side,  # LONG OR SHORT
                 "type": "MARKET",
                 "quantity": str(qty),
@@ -101,7 +115,6 @@ class BinanceAdapter(GenericAdapter, object):
         if not isinstance(cls.instance, cls):
             cls.instance = object.__new__(cls)
         return cls.instance
-
 
 
 '''

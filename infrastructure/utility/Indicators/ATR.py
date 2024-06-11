@@ -25,8 +25,8 @@ class ATR(IIndicator):
         signals = pd.Series(0, index=dataframe.index, dtype='int')
 
         # Generate signals using vectorized operations
-        signals[(dataframe["Price_Diff"] > dataframe['Next_Avg_Volatility'])] = 1
-        signals[(dataframe["Price_Diff"] < dataframe['Next_Avg_Volatility'])] = -1
+        signals[(dataframe["Price_Diff"] > dataframe['Next_Avg_Volatility'])] = 1.0
+        signals[(dataframe["Price_Diff"] < dataframe['Next_Avg_Volatility'])] = -1.0
 
         return signals
 

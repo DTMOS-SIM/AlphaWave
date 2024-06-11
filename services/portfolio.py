@@ -1,8 +1,12 @@
 import datetime
 import logging
 import time, threading
+import numpy as np
 
 from infrastructure.interface.currencyWeightsEnum import CurrencyWeights
+from infrastructure.utility.Adapters.yfinance_adapter import YfinanceAdapter
+from infrastructure.utility.Indicators import Bollinger_Bands, Fibonacci, Stochastic_Oscillator
+from infrastructure.utility.Indicators.ATR import ATR
 from infrastructure.utility.Indicators.MACD import MACD
 from infrastructure.utility.Indicators.RSI import RSI
 from infrastructure.utility.Indicators.Fibonacci import FIBONACCI
@@ -21,6 +25,9 @@ class Portfolio(IPortfolio):
         self.combined_signals = []
         self.assets = assets
         self.wallet = wallet
+
+    def get_asset(self):
+        return self.assets
 
     def get_notional(self):
         return self._notional
@@ -49,33 +56,55 @@ class Portfolio(IPortfolio):
             name = asset.get_name()
 
             # Consolidate values in list
-            temp = [
+            temp = list(map(int, [
                 ATR().generate_signals(indicators['atr']).iloc[-1],
                 RSI().generate_signals(indicators['rsi'], 30, 70).iloc[-1],
                 MACD().generate_signals(indicators['macd']).iloc[-1],
                 FIBONACCI().generate_signals(indicators['fibonacci'], 'Close').iloc[-1],
                 BollingerBands().generate_signals(indicators['bollinger'], 'Close').iloc[-1],
                 StochasticOscillator().generate_signals(indicators['stochastic']).iloc[-1]
-            ]
+            ]))
 
+            print("Asset Name: " + name)
             print(temp)
 
             # Compute buy/sell/hold for particular asset
-            if max(temp, key=temp.count) == 1:
+            if temp.count(1) > temp.count(-1) and temp.count(1) >= 2:
                 overall_signals[name] = 1
-            elif max(temp, key=temp.count) == -1:
+            elif temp.count(1) < temp.count(-1) and temp.count(-1) >= 2:
                 overall_signals[name] = -1
             else:
                 overall_signals[name] = 0
 
         return overall_signals
 
-    def activate_monitoring(self):
+    def activate_monitoring(self, adapter):
 
         logging.info(f'Monitoring for hourly data starting: {datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}')
 
         # DEBUGGING PURPOSE
         # print(time.ctime())
+
+        # Call updated rows of data
+        for asset in self.assets:
+            updated_df_response = adapter.get_current_df_row(asset.get_indicators(), asset.get_name())
+
+            for x, y in updated_df_response.items():
+                match x:
+                    case 'atr':
+                        updated_df_response[x] = ATR().calculate_historical_readings(updated_df_response[x].copy(), 5)
+                    case 'bollinger':
+                        updated_df_response[x] = Bollinger_Bands.BollingerBands().calculate_historical_readings(updated_df_response[x].copy(), 5)
+                    case 'fibonacci':
+                        updated_df_response[x] = Fibonacci.FIBONACCI().calculate_historical_readings(updated_df_response[x].copy(), 5)
+                    case 'macd':
+                        updated_df_response[x] = MACD().calculate_historical_readings(updated_df_response[x].copy(), 5)
+                    case 'rsi':
+                        updated_df_response[x] = RSI().calculate_historical_readings(updated_df_response[x].copy(), 5)
+                    case 'stochastic':
+                        updated_df_response[x] = Stochastic_Oscillator.StochasticOscillator().calculate_historical_readings(updated_df_response[x].copy(), 5)
+
+            asset.set_indicators(updated_df_response)
 
         # Generate new time stamp TAs
         signals = self.generate_signals()
@@ -101,13 +130,17 @@ class Portfolio(IPortfolio):
 
                     # Short if positions not available
                     if len(temp_positions) <= 0:
-                        response = self.transact_assets(symbol=name, qty=asset.get_current_asset_weightage(), side='BUY', position_side='SHORT')
-                        logging.info(response)
+                        logging.info(f'Buy new short position placed for {name}')
+                        # response = self.transact_assets(symbol=name, qty=asset.get_current_asset_weightage(), side='BUY', position_side='SHORT')
+                        # logging.info(response)
 
-                    for position in temp_positions:
-                        # Sell if positions are available
-                        response = self.transact_assets(symbol=name, qty=position.positionAmt, side='SELL', position_side='SHORT')
-                        logging.info(response)
+                    else:
+                        for position in temp_positions:
+                            # Sell short if positions are available
+                            logging.info(f'Sell short position placed for {name}')
+                            # response = self.transact_assets(symbol=name, qty=position.positionAmt, side='SELL', position_side=position.positionSide)
+
+                    # logging.info(response)
 
                 # Check for buy signals
                 elif signal == 1:
@@ -115,17 +148,20 @@ class Portfolio(IPortfolio):
                     # Sell all purchased assets
                     for position in temp_positions:
                         # Sell if positions are available
-                        response = self.transact_assets(symbol=name, qty=position.positionAmt, side='SELL', position_side='LONG')
-                        logging.info(response)
+                        #
+                        logging.info(f'Sell old long position placed for {name}')
+                        # response = self.transact_assets(symbol=name, qty=position.positionAmt, side='SELL', position_side='LONG')
+                        # logging.info(response)
 
                     # Buy back new set of assets with correct weightages
-                    response = self.transact_assets(symbol=name, qty=asset.get_current_asset_weightage(), side='BUY', position_side='LONG')
-                    logging.info(response)
+                    logging.info(f'Buy new long position placed for {name}')
+                    # response = self.transact_assets(symbol=name, qty=asset.get_current_asset_weightage(), side='BUY', position_side='LONG')
+                    # logging.info(response)
 
                 else:
                     pass
 
-        threading.Timer(5, self.activate_monitoring).start()
+        threading.Timer(5, self.activate_monitoring(adapter)).start()
 
     def set_notional(self, notional):
         self._notional = notional
@@ -141,7 +177,10 @@ class Portfolio(IPortfolio):
 
         # Compute each nominal individual
         for asset in self.assets:
-            asset.set_current_asset_weightage(float(asset.get_weight() / total_current_weights) * float(self.wallet.total_wallet_balance))
+            new_weights = float(asset.get_weight() / total_current_weights) * float(self.wallet.total_wallet_balance)
+            print(new_weights)
+            asset.set_current_asset_weightage(new_weights)
+            print("Current asset weights for " + asset.get_name() + ": ", asset.get_current_asset_weightage())
 
     def transact_assets(self, symbol: str, qty: int, side: str, position_side: str):
         return BinanceAdapter().transact_assets(symbol=symbol, qty=qty, side=side, position_side=position_side)

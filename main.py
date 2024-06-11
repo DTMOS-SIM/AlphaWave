@@ -1,9 +1,8 @@
 import logging
-
 from infrastructure.utility.Adapters.yfinance_adapter import YfinanceAdapter
 from services.position import Position
 from infrastructure.interface.currencyWeightsEnum import CurrencyWeights
-from services import asset
+from services.asset import Asset
 from infrastructure.utility.Adapters.binance_adapter import BinanceAdapter
 from services.portfolio import Portfolio
 from infrastructure.utility.Indicators import ATR, Bollinger_Bands, Fibonacci, MACD, RSI, Stochastic_Oscillator
@@ -16,7 +15,7 @@ def main():
                         level=logging.INFO)
 
     # Declare right type of adapter to use
-    api_adapter = YfinanceAdapter()
+    api_adapter = BinanceAdapter()
 
     # Reflect platform
     if isinstance(api_adapter, BinanceAdapter):
@@ -34,7 +33,7 @@ def main():
         )
 
         # Binance api to fetch and map into dataframe for consolidation of data
-        response = api_adapter.get_initial_df(1, 5)
+        response = api_adapter.get_initial_df(1, 15)
 
         temp_assets_list = []
 
@@ -46,12 +45,11 @@ def main():
             # Generate & add in TAs into each asset class
             TAs = {
                 'atr': ATR.ATR().calculate_historical_readings(response[item].copy(), 5),
-                'bollinger': Bollinger_Bands.BollingerBands().calculate_historical_readings(response[item].copy(), 5),
+                'bollinger': Bollinger_Bands.BollingerBands().calculate_historical_readings(response[item].copy(),5),
                 'fibonacci': Fibonacci.FIBONACCI().calculate_historical_readings(response[item].copy(), 5),
                 'macd': MACD.MACD().calculate_historical_readings(response[item].copy(), 5),
                 'rsi': RSI.RSI().calculate_historical_readings(response[item].copy(), 5),
-                'stochastic': Stochastic_Oscillator.StochasticOscillator().calculate_historical_readings(response[item].copy(), 5)
-            }
+                'stochastic': Stochastic_Oscillator.StochasticOscillator().calculate_historical_readings(response[item].copy(), 5)}
 
             # Map current positions to system
             for position in positions:
@@ -75,7 +73,7 @@ def main():
                     )
                     temp_position_list.append(temp_position)
 
-            temp_asset = asset.Asset(item, CurrencyWeights[item].value, positions=temp_position_list, TAs=TAs)
+            temp_asset = Asset(item, CurrencyWeights[item].value, positions=temp_position_list, TAs=TAs)
             temp_assets_list.append(temp_asset)
 
         # Assign portfolio asset allocation
@@ -85,7 +83,7 @@ def main():
         # portfolio.show_specs()
 
         # Activate Monitoring
-        portfolio.activate_monitoring()
+        portfolio.activate_monitoring(api_adapter)
 
     elif isinstance(api_adapter, YfinanceAdapter):
 
@@ -147,7 +145,7 @@ def main():
             #         )
             #         temp_position_list.append(temp_position)
 
-            temp_asset = asset.Asset(item, CurrencyWeights[item].value, positions=[], TAs=TAs)
+            temp_asset = Asset(item, CurrencyWeights[item].value, positions=[], TAs=TAs)
             temp_assets_list.append(temp_asset)
 
         # Assign portfolio asset allocation
@@ -157,7 +155,7 @@ def main():
         portfolio.show_specs()
 
         # Activate Monitoring
-        portfolio.activate_monitoring()
+        portfolio.activate_monitoring(api_adapter)
 
 
 if __name__ == '__main__':
