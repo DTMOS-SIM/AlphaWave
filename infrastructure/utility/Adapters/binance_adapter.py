@@ -9,6 +9,7 @@ from binance.um_futures import UMFutures
 
 
 class BinanceAdapter(GenericAdapter, object):
+
     instance = None
 
     def __init__(self):
@@ -26,6 +27,10 @@ class BinanceAdapter(GenericAdapter, object):
 
     def get_asset_data(self):
         pass
+
+    def get_market_positions(self, symbol: str):
+        return self._futures_client.get_position_risk(symbol=symbol)
+
 
     def get_market_data(self, interval: str):
         temp_dict = {}
@@ -70,7 +75,6 @@ class BinanceAdapter(GenericAdapter, object):
             logging.info(f'Sleeping for {seconds} seconds')
         # Completed
         logging.info(f'Finished getting initial data for T + {initial_interval}')
-        print(dict_temp)
         return dict_temp
 
     def get_current_df_row(self, dict_temp: {}, pair) -> dict:
@@ -89,18 +93,14 @@ class BinanceAdapter(GenericAdapter, object):
         pass
 
     def transact_assets(self, symbol: str, qty: float, side: str, position_side: str):
-        params = [
-            {
-                "symbol": symbol,
-                "side": side,  # BUY OR SELL
-                "positionSide": position_side,  # LONG OR SHORT
-                "type": "MARKET",
-                "quantity": str(qty),
-            },
-        ]
 
         try:
-            response = self._futures_client.new_batch_order(params)
+            response = self._futures_client.new_order(
+                symbol=symbol,
+                side=side,
+                positionSide=position_side,
+                type="MARKET",
+                quantity=str(qty))
             logging.info('Sent Order: ', response)
             return response
         except Exception as error:
@@ -122,6 +122,7 @@ Used for testing purposes only
 '''
 # if __name__ == '__main__':
 #     binance_api = BinanceAdapter()
-#     response = binance_api.get_market_data()
-#     response = binance_api.get_account_info()
+#     # response = binance_api.get_market_data()
+#     # response = binance_api.get_account_info()
+#     # response = binance_api.transact_assets(symbol='ETHUSDT', qty=1, side='SELL', position_side='LONG')
 #     print(response)

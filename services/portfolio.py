@@ -114,52 +114,7 @@ class Portfolio(IPortfolio):
         # Update weightage and notional value based on hold and buy
         self.compute_realized_allocation(signals)
 
-        for name, signal in signals.items():
-
-            # Check if asset position is available
-            for asset in self.assets:
-
-                temp_positions = []
-
-                # Assign temporary positions
-                if asset.get_name() == name:
-                    temp_positions = asset.get_positions()
-
-                # Check for sell signals
-                if signal == -1:
-
-                    # Short if positions not available
-                    if len(temp_positions) <= 0:
-                        logging.info(f'Buy new short position placed for {name}')
-                        # response = self.transact_assets(symbol=name, qty=asset.get_current_asset_weightage(), side='BUY', position_side='SHORT')
-                        # logging.info(response)
-
-                    else:
-                        for position in temp_positions:
-                            # Sell short if positions are available
-                            logging.info(f'Sell short position placed for {name}')
-                            # response = self.transact_assets(symbol=name, qty=position.positionAmt, side='SELL', position_side=position.positionSide)
-
-                    # logging.info(response)
-
-                # Check for buy signals
-                elif signal == 1:
-
-                    # Sell all purchased assets
-                    for position in temp_positions:
-                        # Sell if positions are available
-                        #
-                        logging.info(f'Sell old long position placed for {name}')
-                        # response = self.transact_assets(symbol=name, qty=position.positionAmt, side='SELL', position_side='LONG')
-                        # logging.info(response)
-
-                    # Buy back new set of assets with correct weightages
-                    logging.info(f'Buy new long position placed for {name}')
-                    # response = self.transact_assets(symbol=name, qty=asset.get_current_asset_weightage(), side='BUY', position_side='LONG')
-                    # logging.info(response)
-
-                else:
-                    pass
+        self.execute_trade(signals)
 
         threading.Timer(5, self.activate_monitoring(adapter)).start()
 
@@ -176,11 +131,70 @@ class Portfolio(IPortfolio):
                 total_current_weights += CurrencyWeights[key].value
 
         # Compute each nominal individual
-        for asset in self.assets:
-            new_weights = float(asset.get_weight() / total_current_weights) * float(self.wallet.total_wallet_balance)
-            print(new_weights)
-            asset.set_current_asset_weightage(new_weights)
-            print("Current asset weights for " + asset.get_name() + ": ", asset.get_current_asset_weightage())
+        for key, value in signals.items():
+            for asset in self.assets:
+                if asset.get_name() == key and value == 1:
+                    new_weights = float(asset.get_weight() / total_current_weights) * float(self.wallet.total_wallet_balance)
+                    asset.set_current_asset_weightage(new_weights)
+                    print("Current asset weights for " + asset.get_name() + ": ", asset.get_current_asset_weightage())
+
+    def execute_trade(self, signals: dict):
+        for name, signal in signals.items():
+
+            # Check if asset position is available
+            for asset in self.assets:
+
+                temp_positions = []
+
+                # Assign temporary positions
+                if asset.get_name() == name:
+                    temp_positions = asset.get_positions()
+
+                # Check for sell signals
+                if signal == -1:
+
+                    # Short if positions not available
+                    if len(temp_positions) <= 0:
+                        # response = self.transact_assets(symbol=name, qty=asset.get_current_asset_weightage(), side='BUY', position_side='SHORT')
+                        logging.info(f'Buy new short position placed for {name}')
+                        break
+
+                    else:
+                        for position in temp_positions:
+
+                            # Check if existing short position exist
+                            if position.positionSide == 'SHORT':
+                                # Skip short
+                                break
+                            else:
+                                # If long previously, sell short positions
+                                # response = self.transact_assets(symbol=name, qty=position.positionAmt, side='SELL', position_side=position.positionSide)
+                                logging.info(f'Sell short position placed for {name}')
+                                break
+
+                    # logging.info(response)
+
+                # Check for buy signals
+                elif signal == 1:
+
+                    # Sell all purchased assets
+                    for position in temp_positions:
+                        # Sell if positions are available
+                        #
+                        logging.info(f'Sell old long position placed for {name}')
+                        break
+                        # response = self.transact_assets(symbol=name, qty=position.positionAmt, side='SELL', position_side='LONG')
+                        # logging.info(response)
+
+                    # Buy back new set of assets with correct weightages
+                    logging.info(f'Buy new long position placed for {name}')
+                    break
+                    # response = self.transact_assets(symbol=name, qty=asset.get_current_asset_weightage(), side='BUY', position_side='LONG')
+                    # logging.info(response)
+
+                # Hold position do not touch
+                else:
+                    break
 
     def transact_assets(self, symbol: str, qty: int, side: str, position_side: str):
         return BinanceAdapter().transact_assets(symbol=symbol, qty=qty, side=side, position_side=position_side)
