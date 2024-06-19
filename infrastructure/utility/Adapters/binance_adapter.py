@@ -87,6 +87,7 @@ class BinanceAdapter(GenericAdapter, object):
 
         # Completed
         logging.info(f'Finished getting initial data for T + {initial_interval}')
+        print(dict_temp)
         return dict_temp
 
     def get_current_df_row(self, dict_temp: {}, pair) -> dict:

@@ -225,7 +225,7 @@ class Portfolio(IPortfolio):
 
     def transact_hedge_assets(self, symbol: str, qty: int, side: str):
         return AlpacaAdapter().transact_assets(symbol=symbol, qty=qty, side=side)
-
+      
     def filter_signals(self, indicators: []):
         pass
 

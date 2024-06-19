@@ -24,6 +24,12 @@ class Asset(IAsset, object):
     def get_name(self):
         return self._name
 
+    def get_positions(self):
+        return self._positions
+
+    def get_name(self):
+        return self._name
+
     def set_weight(self, weight: CurrencyWeights) -> None:
         self._weight = weight
 
