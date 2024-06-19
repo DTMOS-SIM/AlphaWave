@@ -22,10 +22,10 @@ class StochasticOscillator(IIndicator):
         signals = pd.Series(0, index=dataframe.index, dtype='int')
 
         # Assign buy signals where the stochastic oscillator is below 0.2
-        signals[dataframe["Stochastic_Osc"] < 0.2] = 1  # Indicates a buy signal
+        signals[dataframe["Stochastic_Osc"] < 0.2] = 1.0  # Indicates a buy signal
 
         # Assign sell signals where the stochastic oscillator is above 0.8
-        signals[dataframe["Stochastic_Osc"] > 0.8] = -1  # Indicates a sell signal
+        signals[dataframe["Stochastic_Osc"] > 0.8] = -1.0  # Indicates a sell signal
 
         return signals
 
