@@ -3,19 +3,20 @@ import time
 import calendar
 import pandas as pd
 from datetime import datetime as dt
+
+from binance.error import ClientError
 from infrastructure.interface.currencyWeightsEnum import CurrencyWeights
 from infrastructure.interface.IAdapter import GenericAdapter
 from binance.um_futures import UMFutures
 
 
 class BinanceAdapter(GenericAdapter, object):
-
     instance = None
 
-    def __init__(self):
+    def __init__(self, api_key, api_secret):
         self._base_url = 'https://testnet.binancefuture.com'
-        self._api_key = 'b8e0a5bc6ccfe44e8458f633c9c7e12859f181a5cbc23db42d2a03bc851b63b7'
-        self._secret_key = 'af61a6188b81f0038715e0ae5837333fa39772c8114641d5e013a15d8c26fa12'
+        self._api_key = api_key
+        self._secret_key = api_secret
         self._futures_client = UMFutures(key=self._api_key, secret=self._secret_key, base_url=self._base_url)
 
     def get_credentials(self):
@@ -28,9 +29,20 @@ class BinanceAdapter(GenericAdapter, object):
     def get_asset_data(self):
         pass
 
-    def get_market_positions(self, symbol: str):
-        return self._futures_client.get_position_risk(symbol=symbol)
+    def get_market_positions(self, symbol: str = None):
+        try:
+            response = self._futures_client.get_position_risk(symbol=symbol, recvWindow=6000)
+            logging.info(response)
+            return response
+        except ClientError as error:
+            logging.error(
+                "Found error. status: {}, error code: {}, error message: {}".format(
+                    error.status_code, error.error_code, error.error_message
+                )
+            )
 
+    def get_ticker_price(self, symbol: str):
+        return float(self._futures_client.ticker_price(symbol=symbol)['price'])
 
     def get_market_data(self, interval: str):
         temp_dict = {}
@@ -72,7 +84,7 @@ class BinanceAdapter(GenericAdapter, object):
             except Exception as e:
                 raise e
             time.sleep(seconds)
-            logging.info(f'Sleeping for {seconds} seconds')
+
         # Completed
         logging.info(f'Finished getting initial data for T + {initial_interval}')
         return dict_temp
@@ -115,14 +127,3 @@ class BinanceAdapter(GenericAdapter, object):
         if not isinstance(cls.instance, cls):
             cls.instance = object.__new__(cls)
         return cls.instance
-
-
-'''
-Used for testing purposes only
-'''
-# if __name__ == '__main__':
-#     binance_api = BinanceAdapter()
-#     # response = binance_api.get_market_data()
-#     # response = binance_api.get_account_info()
-#     # response = binance_api.transact_assets(symbol='ETHUSDT', qty=1, side='SELL', position_side='LONG')
-#     print(response)

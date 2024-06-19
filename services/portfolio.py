@@ -1,9 +1,10 @@
 import datetime
 import logging
-import time, threading
-import numpy as np
+import threading
 
 from infrastructure.interface.currencyWeightsEnum import CurrencyWeights
+from infrastructure.interface.hedgingAssetsEnum import HedgingAssets
+from infrastructure.utility.Adapters.alpaca_adapter import AlpacaAdapter
 from infrastructure.utility.Adapters.yfinance_adapter import YfinanceAdapter
 from infrastructure.utility.Indicators import Bollinger_Bands, Fibonacci, Stochastic_Oscillator
 from infrastructure.utility.Indicators.ATR import ATR
@@ -29,8 +30,11 @@ class Portfolio(IPortfolio):
     def get_asset(self):
         return self.assets
 
-    def get_notional(self):
-        return self._notional
+    def get_wallet(self):
+        return self.wallet
+
+    def set_wallet(self, wallet: Wallet):
+        self.wallet = wallet
 
     def show_specs(self):
         print("Wallet Data: ")
@@ -78,12 +82,24 @@ class Portfolio(IPortfolio):
 
         return overall_signals
 
-    def activate_monitoring(self, adapter):
+    def activate_monitoring(self, adapter: BinanceAdapter | YfinanceAdapter):
 
         logging.info(f'Monitoring for hourly data starting: {datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}')
 
-        # DEBUGGING PURPOSE
-        # print(time.ctime())
+        data, assets, positions = adapter.get_account_info()
+
+        # Create Wallet
+        wallet = Wallet(
+            data['feeTier'],
+            data['totalWalletBalance'],
+            data['totalUnrealizedProfit'],
+            data['totalMarginBalance'],
+            data['totalCrossWalletBalance'],
+            data['availableBalance'],
+            data['maxWithdrawAmount'],
+        )
+
+        self.set_wallet(wallet)
 
         # Call updated rows of data
         for asset in self.assets:
@@ -116,81 +132,89 @@ class Portfolio(IPortfolio):
 
         self.execute_trade(signals)
 
-        threading.Timer(5, self.activate_monitoring(adapter)).start()
-
-    def set_notional(self, notional):
-        self._notional = notional
-
     def compute_realized_allocation(self, signals: {}):
 
         total_current_weights = 0.0
 
         # Compute total amount of weights required for denominator
         for key, value in signals.items():
-            if value == 1 or value == 0:
+            if value == 1 or value == -1:
                 total_current_weights += CurrencyWeights[key].value
 
         # Compute each nominal individual
         for key, value in signals.items():
             for asset in self.assets:
-                if asset.get_name() == key and value == 1:
+                if asset.get_name() == key and value == 1 or value == -1:
                     new_weights = float(asset.get_weight() / total_current_weights) * float(self.wallet.total_wallet_balance)
                     asset.set_current_asset_weightage(new_weights)
                     print("Current asset weights for " + asset.get_name() + ": ", asset.get_current_asset_weightage())
+                    break
 
     def execute_trade(self, signals: dict):
         for name, signal in signals.items():
+
+            hedging_option = HedgingAssets.__getitem__(name).value
 
             # Check if asset position is available
             for asset in self.assets:
 
                 temp_positions = []
+                is_empty_array: bool
+                is_long_empty_position: bool
+                is_short_empty_position: bool
 
                 # Assign temporary positions
                 if asset.get_name() == name:
-                    temp_positions = asset.get_positions()
+                    temp_positions = BinanceAdapter().get_market_positions(symbol=name)
+                    is_empty_array = True if len(temp_positions) > 0 else False
+                    is_long_empty_position = True if float(temp_positions[0]['positionAmt']) == 0 else False
+                    is_short_empty_position = True if float(temp_positions[0]['positionAmt']) == 0 else False
 
                 # Check for sell signals
                 if signal == -1:
 
                     # Short if positions not available
-                    if len(temp_positions) <= 0:
-                        # response = self.transact_assets(symbol=name, qty=asset.get_current_asset_weightage(), side='BUY', position_side='SHORT')
-                        logging.info(f'Buy new short position placed for {name}')
+                    if is_empty_array or is_long_empty_position and is_short_empty_position:
+                        new_qty = round(asset.get_current_asset_weightage()/BinanceAdapter().get_ticker_price(name), 3)
+                        new_hedge_qty = round(asset.get_current_asset_weightage()/AlpacaAdapter().get_current_ticker_data(name), 3)
+                        response = self.transact_assets(symbol=name, qty=new_qty, side='SELL', position_side='SHORT')
+                        hedge_response = self.transact_hedge_assets(symbol=hedging_option, qty=new_hedge_qty, side='BUY', position_side='LONG')
+                        logging.info(f'Sell new short position placed for {name}')
+                        logging.info(f'Buy new long hedge position placed for {hedging_option}')
                         break
 
-                    else:
-                        for position in temp_positions:
+                    # Check if existing short position exist
+                    elif not is_short_empty_position:
+                        # Skip short
+                        break
 
-                            # Check if existing short position exist
-                            if position.positionSide == 'SHORT':
-                                # Skip short
-                                break
-                            else:
-                                # If long previously, sell short positions
-                                # response = self.transact_assets(symbol=name, qty=position.positionAmt, side='SELL', position_side=position.positionSide)
-                                logging.info(f'Sell short position placed for {name}')
-                                break
-
-                    # logging.info(response)
+                    elif not is_long_empty_position and not is_short_empty_position:
+                        # If long previously, sell short positions
+                        new_hedge_qty = round(temp_positions[0]['positionAmt'] / AlpacaAdapter().get_current_ticker_data(name), 3)
+                        response = self.transact_assets(symbol=name, qty=temp_positions[0]['positionAmt'], side='BUY',position_side=temp_positions[0]['positionSide'])
+                        hedge_response = self.transact_hedge_assets(symbol=hedging_option, qty=new_hedge_qty,side='BUY', position_side='SHORT')
+                        logging.info(f'Sell SHORT position placed for {name}')
+                        logging.info(f'Buy LONG hedge position placed for {hedging_option}')
+                        break
 
                 # Check for buy signals
                 elif signal == 1:
 
-                    # Sell all purchased assets
-                    for position in temp_positions:
-                        # Sell if positions are available
-                        #
-                        logging.info(f'Sell old long position placed for {name}')
-                        break
-                        # response = self.transact_assets(symbol=name, qty=position.positionAmt, side='SELL', position_side='LONG')
-                        # logging.info(response)
+                    # Sell if positions are available
+                    if not is_empty_array or not is_long_empty_position and not is_short_empty_position:
+                        response = self.transact_assets(symbol=name, qty=temp_positions[0]['positionAmt'], side='SELL',position_side='LONG')
+                        hedge_response = self.transact_hedge_assets(symbol=hedging_option, qty=new_hedge_qty,side='BUY', position_side='SHORT')
+                        logging.info(f'Sell LONG position placed for {name}')
+                        logging.info(f'Buy SHORT hedge position placed for {hedging_option}')
 
                     # Buy back new set of assets with correct weightages
-                    logging.info(f'Buy new long position placed for {name}')
+                    new_qty = round(asset.get_current_asset_weightage() / BinanceAdapter().get_ticker_price(name), 3)
+                    new_hedge_qty = round(asset.get_current_asset_weightage() / AlpacaAdapter().get_current_ticker_data(name), 3)
+                    response = self.transact_assets(symbol=name, qty=new_qty, side='BUY', position_side='LONG')
+                    hedge_response = self.transact_hedge_assets(symbol=hedging_option, qty=new_hedge_qty, side='SELL',position_side='SHORT')
+                    logging.info(f'Buy LONG position placed for {name}')
+                    logging.info(f'Sell SHORT hedge position placed for {hedging_option}')
                     break
-                    # response = self.transact_assets(symbol=name, qty=asset.get_current_asset_weightage(), side='BUY', position_side='LONG')
-                    # logging.info(response)
 
                 # Hold position do not touch
                 else:
@@ -198,6 +222,9 @@ class Portfolio(IPortfolio):
 
     def transact_assets(self, symbol: str, qty: int, side: str, position_side: str):
         return BinanceAdapter().transact_assets(symbol=symbol, qty=qty, side=side, position_side=position_side)
+
+    def transact_hedge_assets(self, symbol: str, qty: int, side: str):
+        return AlpacaAdapter().transact_assets(symbol=symbol, qty=qty, side=side)
 
     def filter_signals(self, indicators: []):
         pass
